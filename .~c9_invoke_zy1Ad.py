@@ -3,12 +3,11 @@
 #-------- Script Imports ------------
 #For matrix and vector structures
 import numpy as np
-#For math operations
+#For math o
 import math as math
 
 
 #Runs the gradient descent with the given parameters
-#Serves as a unified method
 def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps):
     """
         Parameters
@@ -27,7 +26,7 @@ def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps):
             one as a float. For the first iteriation, this function receives a
             None value.
         B_matrix : function(numpy.matrix)
-            A function that receives the previous B^-1 matrix and returns the next
+            A function that receives the previous B^^-1 matrix and returns the next
             one as a numpy.matrix. For the first iteriation, this function 
             receives a None value.
         eps : float
@@ -43,41 +42,18 @@ def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps):
     #Becomes true when |f(x_n+1) - f(x_n)| < eps
     treshold = False
     
-    while(not treshold):
-        #Calculates the necesarry advancing parameters
+    while(!treshold):
         x_prev = x
         a = alpha(a)
         B = B_matrix(B)
         grad = gradient(x_prev)
+        x = x_prev + alpha(a)*(-1)*
         
-        #Calcultaes the next value
-        x = x_prev + alpha(a)*(-1)*B.dot(grad)
         
-        #Checks the the treshold
+        
         treshold = math.fabs(fun(x) - fun(x_prev)) < eps
+        
     
-    return [x, fun(x)]
-#End of run_gradient_descent
-
-#----------------------------------------------------------------------
-#------------------------ Experiment Start ----------------------------
-#----------------------------------------------------------------------
-
-#Declares the global function and its gradient
-def main_function(x):
-    n = 500
-    m = 200
-    c = np.random.rand(1,n)
-    #Puts each a_j as a column of the following matrix
-    A = np.random.rand(n,m)
     
-    first_term = c.dot(x)
-    second_term = (-1)*sum(map(lambda a: math.log(1 - a.dot(x)), A.T))
-    third_term = (-1)*sum(map(lambda y: math.log(1 - y**2), x))
     
-    return first_term + second_term + third_term
-#-------------------
-#-----Constant------
-#-------------------
-
-
+    
