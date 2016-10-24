@@ -46,7 +46,7 @@ def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps):
     #printing variables
     treshold = False
     count = 1
-    print_counter = 1
+    print_counter = 100
     
     #Becomes true when |f(x_n+1) - f(x_n)| < eps
     while(not treshold):
@@ -69,7 +69,6 @@ def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps):
         count = count + 1    
         treshold = np.linalg.norm(grad) < eps
     
-    print(x)
     return [x, fun(x)]
 #end of run_gradient_descent
 
@@ -83,6 +82,7 @@ c = np.random.rand(1,n)
 #Puts each a_j as a column of the following matrix
 A = np.random.rand(n,m)
 global_eps = 5
+global_alpha = 0.00001
 
 #Declares the global function, its gradient and its Hessian
 def main_function(x):
@@ -138,17 +138,21 @@ def main_hessian(x):
 #-----Gradient Descent-----
 #--------------------------
 
-#First declares the global backtracking method
+#First declares the global constant and backtracking method
+def alpha_constant(x, p):
+    return global_alpha
+#end of  alpha_constant
+
 def alpha_backtracking(x, p):
     #For teh first iteration
     if(p is None):
-        return 1
+        return global_alpha
         
-    a = 1
-    p = np.random.rand(1)[0]
+    a = global_alpha
+    rho = np.random.rand(1)[0]
     c = np.random.rand(1)[0]
-    while(main_function(x + a*p) > main_function(x) + c*a*np.dot(main_gradient(x).T,p) ):
-        a = p*a
+    while(main_function(x + a*p) > main_function(x) + c*a*np.dot(main_gradient(x),p.T) ):
+        a = rho*a
     
     return a
 # end of alpha_backtracking
@@ -156,33 +160,45 @@ def alpha_backtracking(x, p):
 #---- Constant ------
 #Runs the constant example
 def run_constant():
-    alpha_const = 1
+
     B_const = np.identity(n)
-    alpha_fun = lambda x: alpha_const
     B_matrix_fun = lambda x: B_const
     
     result = run_gradient_descent(dim = n,
                                   fun = main_function,
                                   gradient = main_gradient, 
-                                  alpha = alpha_fun, 
+                                  alpha = alpha_constant, 
                                   B_matrix = B_matrix_fun, 
                                   eps = global_eps )
     
     return result
 #end of run_constant
 
+#---- Constant  Backtracking ------
+#Runs the constant eith backtracking example
+def run_constant_backtracking():
+    B_const = np.identity(n)
+    B_matrix_fun = lambda x: B_const
+    
+    result = run_gradient_descent(dim = n,
+                                  fun = main_function,
+                                  gradient = main_gradient, 
+                                  alpha = alpha_backtracking, 
+                                  B_matrix = B_matrix_fun, 
+                                  eps = global_eps )
+    
+    return result
+#end of run_constant_backtracking
 
 #---- Newton ------
 #Runs the constant example
 def run_newton():
-    alpha_const = 1
-    alpha_fun = lambda x: alpha_const
     B_matrix_fun = lambda x: (-1)*np.linalg.inv(main_hessian(x))
     
     result = run_gradient_descent(dim = n,
                                   fun = main_function,
                                   gradient = main_gradient, 
-                                  alpha = alpha_fun, 
+                                  alpha = alpha_constant, 
                                   B_matrix = B_matrix_fun, 
                                   eps = global_eps )
     
@@ -195,7 +211,10 @@ def run_newton():
 
 
 #--------Excecutions -----------------------
-print run_newton()
+resultado =  run_constant_backtracking()
+print('Vector: ' + str(resultado[0]))
+print('')
+print('Valor:' + str(resultado[1]))
 
 #print(run_gradient_descent(dim = 1,
 #                          fun = lambda x: (x-5)**2,
