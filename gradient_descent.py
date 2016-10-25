@@ -30,7 +30,7 @@ A = np.random.rand(n,m)
 #Global constant alpha
 global_alpha = 0.001
 #GLobal epsilon for treshold
-global_eps = 0.1
+global_eps = 0.01
 #global difference measure for gradient
 global_dif = 0.000001
 #Measure how many iterations to print pogress
@@ -296,14 +296,21 @@ def alpha_global(x, p):
 def alpha_backtracking(x, p):
     #For the first iteration
     if(p is None):
-        return constant_alpha
+        return global_alpha
     
   
-    a = global_alpha
+    a = 1
+    flag = True
+    while(flag):
+        try:
+            main_function(x + a*p)
+            flag = False
+        except ValueError:
+            a = a/2
+
     rho = 4/5
     c = 4/5
     while(main_function(x + a*p) > main_function(x) + c*a*np.dot(main_gradient(x),p.T) ):
-        print('entro')
         a = rho*a
     
     return a
@@ -445,7 +452,7 @@ def run_experiment():
 #----------------------------------------------------------------------
 
 
-resultado =  run_newton()
+resultado =  run_constant()
 print('Fin de la ejecucion')
 print('------------------------------')
 print('Valor:' + str(resultado[1]))
