@@ -9,7 +9,7 @@ from __future__ import division
 import numpy as np
 #For math operations
 import math as math
-
+#For system requirements
 import sys
 
 #For Graphing. The methods export the grapgics on plotly, the user only needs
@@ -28,11 +28,11 @@ c = np.random.rand(1,n)
 #Puts each a_j as a column of the following matrix
 A = np.random.rand(n,m)
 #Global constant alpha
-global_alpha = 0.01
+global_alpha = 0.001
 #GLobal epsilon for treshold
-global_eps = 0.01
+global_eps = 0.1
 #global difference measure for gradient
-global_dif = 0.00001
+global_dif = 0.000001
 #Measure how many iterations to print pogress
 print_counter = 10
 
@@ -128,12 +128,15 @@ def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps, inverse = Tru
         grad = gradient(x_actual)
 
         #Calcultaes the next value
-        a = alpha(x_actual, p)
         if inverse:
             p = (-1)*B.dot(grad.T).T
         else:
             p = (-1)*np.linalg.solve(B, grad.T).T
+            
         
+        #raw_input('espere')    
+        
+        a = alpha(x_actual, p)
         x = x_actual + a*p
         x_last = x_actual
         
@@ -224,7 +227,9 @@ def main_gradient(x):
 def main_hessian(x):
     
     #Calculates the common vector in each coordinate
-    temp_vec = np.array(map(lambda a_column: 1/(1 - a_column.dot(x.T)), A.T)).T
+    temp_vec = np.array(map(lambda a_column: 1/(1 - a_column.dot(x.T))**2, A.T)).T
+
+
     #There is probably a faster way to do this, but since for this case the
     # Hessian matrix corresponds to a symetric matrix:
     hessian = np.zeros((n,n))
@@ -233,8 +238,8 @@ def main_hessian(x):
             row = np.matrix(A[i,:]*A[j,:])
             value = np.dot(row,temp_vec.T)
             if(i == j):
-                value = value + 2*(1+x[0,i]**2)/(1-x[0,i]**2)
-            
+                value = value + 2*(1+(x[0,i]**2))/((1-(x[0,i]**2))**2)
+
             hessian[i,j] = value
             hessian[j,i] = value
             
@@ -258,7 +263,6 @@ def exp_gradient(x):
     
     #Calculates the common vector in each coordinate
     temp_vec = np.array(map(lambda a_column: 1/(1 - a_column.dot(x.T)), A_e.T))
-
     second_term = np.array(map(lambda a_row:  a_row.dot(temp_vec), A_e)).T
     
 
@@ -290,14 +294,16 @@ def alpha_global(x, p):
 #end of  alpha_global
 
 def alpha_backtracking(x, p):
-    #For teh first iteration
+    #For the first iteration
     if(p is None):
-        return global_alpha
-        
+        return constant_alpha
+    
+  
     a = global_alpha
-    rho = np.random.rand(1)[0]
-    c = np.random.rand(1)[0]
+    rho = 4/5
+    c = 4/5
     while(main_function(x + a*p) > main_function(x) + c*a*np.dot(main_gradient(x),p.T) ):
+        print('entro')
         a = rho*a
     
     return a
@@ -348,10 +354,12 @@ def B_matrix_hessian(B, x, x_prev):
 
 def run_newton():
     
+    alpha_newton = lambda a,p: 1
+    
     result = run_gradient_descent(dim = n,
                                   fun = main_function,
                                   gradient = main_gradient, 
-                                  alpha = alpha_global, 
+                                  alpha = alpha_newton, 
                                   B_matrix = B_matrix_hessian, 
                                   eps = global_eps,
                                   inverse = False)
@@ -380,7 +388,7 @@ def BFGS(B, x_actual, x_last):
     s = x_next - x_actual
     y = main_gradient(x_next) - main_gradient(x_actual)
     first_term = B
-    second_term = np.dot(B.dot(s.T), s.dot(B))/(np.dot(s, B.dot(s.T)))
+    second_term = (-1)*np.dot(B.dot(s.T), s.dot(B))/(np.dot(s, B.dot(s.T)))
     third_term = np.dot(y.T,y)/np.dot(y, s.T)
     
     return first_term + second_term + third_term
@@ -395,6 +403,7 @@ def run_BFGS():
                                   B_matrix = BFGS, 
                                   eps = global_eps,
                                   inverse = False)
+    return result                                  
     
 
 #-----------------------------------
@@ -444,7 +453,7 @@ print('------------------------------')
 print('Numero de Iteraciones: ' + str(resultado[4]))
 print(' ')
 
-plot_log(resultado[3], resultado[1])
+#plot_log(resultado[3], resultado[1])
     
 
 sys.exit('Ok')
@@ -492,31 +501,32 @@ sys.exit('Ok')
 
 
 
-'''
 
+'''
 c = np.random.rand(1,3)
 c[0,0] = 0.5
 c[0,1] = 0.5
 c[0,2] = 0.5
 
-A = np.random.rand(3,2)
+A = np.random.rand(2,2)
 A[0,0] = 1
-A[1,0] = 2
-A[2,0] = 3
-
-A[0,1] = 4
-A[1,1] = 3
-A[2,1] = 2
+A[1,0] = 1
 
 
-x = np.zeros((1,3))
-x[0,0] = 5
-x[0,1] = 5
-x[0,2] = 5 
+A[0,1] = 0
+A[1,1] = 0
 
-n = 3
+
+
+x = np.zeros((1,2))
+x[0,0] = 0
+x[0,1] = 0
+
+
+n = 2
 
 print(main_hessian(x))
+
 
 
 '''
