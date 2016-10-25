@@ -1,6 +1,8 @@
 #Script for experiments with gradient descent
 
-#-------- Script Imports ------------
+#----------------------------------------------------------------------
+#------------------------ Script Imports ------------------------------
+#----------------------------------------------------------------------
 #To make division easier
 from __future__ import division
 #For matrix and vector structures
@@ -10,10 +12,51 @@ import math as math
 
 import sys
 
+#For Graphing. The methods export the grapgics on plotly, the user only needs
+# to enter his/her username and api-key
+import plotly.plotly as py
+import plotly.graph_objs as go
+py.sign_in('minigonche', '8cjqqmkb4o') 
+
+#----------------------------------------------------------------------
+#------------------------ Global Variables ----------------------------
+#----------------------------------------------------------------------
+
+n = 500
+m = 200
+c = np.random.rand(1,n)
+#Puts each a_j as a column of the following matrix
+A = np.random.rand(n,m)
+global_alpha = 0.001
+global_eps = 1
+print_counter = 2
+
+#Final experiment variables
+#-----------------------------------------------
+c_e = np.random.rand(1,2)
+c_e[0,0] = math.pi
+c_e[0,1] = -math.pi
+
+#Puts each a_j as a column of the following matrix
+A_e = np.random.rand(2,2)
+A_e[0,0] = 1/2
+A_e[1,0] = 1/2
+A_e[0,1] = 1/2
+A_e[1,1] = -1/2
+
+global_eps_e = 1
+global_alpha_e = 0.01
+
+
+#----------------------------------------------------------------------
+#------------------------ Main Methods --------------------------------
+#----------------------------------------------------------------------
+
+
 #NOTE: Vectors are assumed as matrix of dimension 1 x n
 #Runs the gradient descent with the given parameters
 #Serves as a unified method
-def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps):
+def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps, inverse = True):
     """
         Parameters
         ----------
@@ -23,44 +66,61 @@ def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps):
         fun : function(numpy.vector)
             The function we wish to minimize
         gradient : functon(numpy.vector)
-            A functon that receives a numpy.vecotr (real vector: x_k) and returns the
-            gradient (as a numpy.vector) of the given function evaluated at
-            the real number received as parameter
+            A functon that receives a numpy.vecotr (real vector: x_k) and 
+            returns the gradient (as a numpy.vector) of the given function 
+            evaluated at the real number received as parameter
         alpha : function(numpy.vector, numpy.vector)
-            A functon that receives two numpy.vecotors (real vectors: x_k and p_k ) and returns the
-            next alpha step
-        B_matrix : function(numpy.vector)
-            A function that receives a numpy.vecotr (real vector) and returns 
-            the next B^-1 np.matrix 
+            A functon that receives two numpy.vecotors (real vectors: 
+            x_k and p_k ) and returns the next alpha step
+        B_matrix : function(np.matrix, numpy.vector)
+            A function that receives a numpy.matrix (the previous matrix) and 
+            numpy.vecotr (real vector) and returns the next multiplication
+            np.matrix 
         eps : float
             The epsylon that serves as a stopping criteria for the algorithm
+        solve : boolean
+            Indicates if the B_matrix method gives the B or the B^-1 matrix
     """
     
     #Initial values
     #The first alpha and B matrix are initialized at None
     x = np.zeros((1,dim))
+    x_last = np.zeros((1,dim))
     B = None
     a = None
     p = None
     
-    #printing variables
+    #Treshold
     treshold = False
+    
+    #printing variables
     count = 1
-    print_counter = 100
+    
+    #Graphing variables
+    x_variables = []
+    function_values = []
     
     #Becomes true when |f(x_n+1) - f(x_n)| < eps
     while(not treshold):
-        #Calculates the necesarry advancing parameters
-        x_prev = x
+        #Saves the Value
+        x_variables.append(x)
+        function_values.append(fun(x))
         
-        B = B_matrix(x_prev)
-        grad = gradient(x_prev)
+        #Calculates the necesarry advancing parameters
+        x_actual = x
+        
+        B = B_matrix(B, x_actual,x_last)
+        grad = gradient(x_actual)
 
         #Calcultaes the next value
-        a = alpha(x_prev, p)
-        p = (-1)*B.dot(grad.T).T
+        a = alpha(x_actual, p)
+        if inverse:
+            p = (-1)*B.dot(grad.T).T
+        else:
+            p = (-1)*np.linalg.solve(B, grad.T).T
         
-        x = x_prev + a*p
+        x = x_actual + a*p
+        x_last = x_actual
         
         #Checks the the treshold
         if count == print_counter:
@@ -68,21 +128,54 @@ def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps):
             count = 0
         count = count + 1    
         treshold = np.linalg.norm(grad) < eps
+        
     
-    return [x, fun(x)]
+    x_final = x
+    value_final = fun(x)
+    
+    
+    return [x_final, value_final, x_variables,function_values ]
 #end of run_gradient_descent
+
+#Graphing method
+def plot_log(function_values, value_final):
+    """
+        Parameters
+        ----------
+        function_values : np.array
+            An array of the value of the function at the given iteration
+        value_final : float
+            The mimimum value achieved in the optimization
+    """
+    #Graphs the plot
+    dif = map(lambda y: math.log(y - value_final ),function_values)
+    #Draws the initial trace
+    trace = go.Scatter(x = range(len(dif)), y =  dif)
+    
+    #Export graph
+    plot_url = py.plot([trace], auto_open=False)  
+    
+#end plot_log
+
+#Graphing method
+def plot(x_values, y_values):
+
+
+    #Draws the initial trace
+    trace = go.Scatter(x = x_values, y =  y_values)
+    
+    #Export graph
+    plot_url = py.plot([trace], auto_open=False)  
+    
+#end plot_log
 
 
 #----------------------------------------------------------------------
 #------------------------ Experiment Start ----------------------------
 #----------------------------------------------------------------------
-n = 100
-m = 20
-c = np.random.rand(1,n)
-#Puts each a_j as a column of the following matrix
-A = np.random.rand(n,m)
-global_eps = 5
-global_alpha = 0.00001
+
+
+#CENTRAL FUNCTION
 
 #Declares the global function, its gradient and its Hessian
 def main_function(x):
@@ -100,13 +193,10 @@ def main_gradient(x):
     
     #Calculates the common vector in each coordinate
     temp_vec = np.array(map(lambda a_column: 1/(1 - a_column.dot(x.T)), A.T))
-    #print(temp_vec.shape)
 
     second_term = np.array(map(lambda a_row:  a_row.dot(temp_vec), A)).T
-    #print(second_term.shape)
     
     third_term = np.array(map(lambda y: 2*y/(1 - y**2), x))
-    #print(third_term.shape)
     
 
     return(first_term + second_term + third_term)
@@ -116,14 +206,13 @@ def main_hessian(x):
     
     #Calculates the common vector in each coordinate
     temp_vec = np.array(map(lambda a_column: 1/(1 - a_column.dot(x.T)), A.T)).T
-
     #There is probably a faster way to do this, but since for this case the
     # Hessian matrix corresponds to a symetric matrix:
     hessian = np.zeros((n,n))
     for i in range(n):
         for j in range(i,n):
-            row = np.matrix(A[i,]*A[j,])
-            value = (-1)*np.dot(row,temp_vec.T)
+            row = np.matrix(A[i,:]*A[j,:])
+            value = np.dot(row,temp_vec.T)
             if(i == j):
                 value = value + 2*(1+x[0,i]**2)/(1-x[0,i]**2)
             
@@ -134,14 +223,52 @@ def main_hessian(x):
 #end of main_hessian
 
 
+#EXPERIMENT FUNCTION
+
+#Declares the global function, its gradient and its Hessian
+def exp_function(x):
+
+    first_term = c_e.dot(x.T)[0,0]
+    second_term = (-1)*sum(map(lambda a: math.log(1 - a.dot(x.T)), A_e.T))
+
+    return(first_term + second_term )
+#end of exp_function   
+
+def exp_gradient(x):
+    first_term = np.array(c_e)
+    
+    #Calculates the common vector in each coordinate
+    temp_vec = np.array(map(lambda a_column: 1/(1 - a_column.dot(x.T)), A_e.T))
+
+    second_term = np.array(map(lambda a_row:  a_row.dot(temp_vec), A_e)).T
+    
+
+    return(first_term + second_term )
+#end of exp_gradient
+
 #--------------------------
 #-----Gradient Descent-----
 #--------------------------
 
-#First declares the global constant and backtracking method
+#First declares the global constant and backtracking method for alpha
+#Calculates the max alpha given the restriction of the logarithms
+def max_alpha():
+    cons = c + np.matrix(sum(A.T))
+    theta_1 = max(map(lambda a_column: -1/np.dot(a_column,cons.T) , A.T))
+    theta_2 = min(map(lambda v: 1/math.fabs(v), cons.T))
+    if(theta_2 < theta_1):
+        raise ValueError('No suitable alphas exist')
+    return theta_2/(1+0.01)
+
+constant_alpha = max_alpha()
+
 def alpha_constant(x, p):
-    return global_alpha
+    return constant_alpha
 #end of  alpha_constant
+
+def alpha_global(x, p):
+    return global_alpha
+#end of  alpha_global
 
 def alpha_backtracking(x, p):
     #For teh first iteration
@@ -157,12 +284,14 @@ def alpha_backtracking(x, p):
     return a
 # end of alpha_backtracking
 
+#-----------------------------------
 #---- Constant ------
+
 #Runs the constant example
 def run_constant():
 
     B_const = np.identity(n)
-    B_matrix_fun = lambda x: B_const
+    B_matrix_fun = lambda B, x, x_prev: B_const
     
     result = run_gradient_descent(dim = n,
                                   fun = main_function,
@@ -174,11 +303,12 @@ def run_constant():
     return result
 #end of run_constant
 
+#-----------------------------------
 #---- Constant  Backtracking ------
 #Runs the constant eith backtracking example
 def run_constant_backtracking():
     B_const = np.identity(n)
-    B_matrix_fun = lambda x: B_const
+    B_matrix_fun = lambda B, x, x_prev: B_const
     
     result = run_gradient_descent(dim = n,
                                   fun = main_function,
@@ -190,35 +320,164 @@ def run_constant_backtracking():
     return result
 #end of run_constant_backtracking
 
+
+#-------------------------------------
 #---- Newton ------
 #Runs the constant example
+def B_matrix_hessian(B, x, x_prev):
+    if B is None:
+        return np.identity(n) 
+        
+    return main_hessian(x)
+
 def run_newton():
-    B_matrix_fun = lambda x: (-1)*np.linalg.inv(main_hessian(x))
     
     result = run_gradient_descent(dim = n,
                                   fun = main_function,
                                   gradient = main_gradient, 
-                                  alpha = alpha_constant, 
-                                  B_matrix = B_matrix_fun, 
-                                  eps = global_eps )
+                                  alpha = alpha_global, 
+                                  B_matrix = B_matrix_hessian, 
+                                  eps = global_eps,
+                                  inverse = False)
     
     return result
 #end of run_newton
 
 
+#-------------------------------------
+#---- Newton BFGS ------
 
+#Primero se declara la funcion que se encarga de
+def BFGS(B, x_actual, x_last):
+    if B is None:
+        return main_hessian(x_actual)
+    
+    #Calculates temporal next value
+    grad = main_gradient(x_actual)
+    p = (-1)*np.linalg.solve(B, grad.T).T
+    x_next = x_actual + global_alpha*p
+    
+    #x_next = x_actual
+    #x_actual = x_last
+    
+    s = x_next - x_actual
+    y = main_gradient(x_next) - main_gradient(x_actual)
+    first_term = B
+    second_term = np.dot(B.dot(s.T), s.dot(B))/(np.dot(s, B.dot(s.T)))
+    third_term = np.dot(y.T,y)/np.dot(y, s.T)
+    
+    return first_term + second_term + third_term
+        
 
+def run_BFGS():
+    
+    result = run_gradient_descent(dim = n,
+                                  fun = main_function,
+                                  gradient = main_gradient, 
+                                  alpha = alpha_backtracking, 
+                                  B_matrix = BFGS, 
+                                  eps = global_eps,
+                                  inverse = False)
+    
 
+#-----------------------------------
+#---- Final Experiment ------
 
-#--------Excecutions -----------------------
-resultado =  run_constant_backtracking()
-print('Vector: ' + str(resultado[0]))
-print('')
+#Runs the constant example
+def run_experiment():
+    
+
+    B_const = np.identity(2)
+    B_matrix_fun = lambda B, x, x_prev: B_const
+    
+    alpha_global_e = lambda x, p: global_alpha_e
+    
+    result = run_gradient_descent(dim = 2,
+                                  fun = exp_function,
+                                  gradient = exp_gradient, 
+                                  alpha = alpha_global_e, 
+                                  B_matrix = B_matrix_fun, 
+                                  eps = global_eps_e )
+    
+    return result
+#end of run_constant        
+
+    
+#----------------------------------------------------------------------
+#------------------------ Excecutions ---------------------------------
+#----------------------------------------------------------------------
+
+'''
+resultado =  run_BFGS()
+print('Fin de la ejecucion')
+print('------------------------------')
 print('Valor:' + str(resultado[1]))
+print('------------------------------')
+print(' ')
 
-#print(run_gradient_descent(dim = 1,
-#                          fun = lambda x: (x-5)**2,
-#                          gradient = lambda x: 2*(x-5), 
-#                          alpha = lambda a:0.001, 
-#                          B_matrix = lambda b: np.matrix([[1]]), 
-#                          eps = 0.001 ))    
+sys.exit('Ok')
+'''
+
+#----------------------------------------------------------------------
+#------------------------ Last Experiment -----------------------------
+#----------------------------------------------------------------------
+
+
+
+
+resultado =  run_experiment()
+print('Fin de la ejecucion')
+print('------------------------------')
+print('Valor:' + str(resultado[1]))
+print('------------------------------')
+print(' ')
+
+
+x_values = map(lambda v: v[0,0], resultado[2])
+y_values = map(lambda v: v[0,1], resultado[2])
+
+rest1 = map(lambda v: 2- x, range(-10,10))
+rest2 = map(lambda v: 2 + x, range(-10,10))
+
+trace1 = go.Scatter(x = x_values, y =  y_values)
+trace2 = go.Scatter(x = range(-10,10), y =  rest1)
+trace3 = go.Scatter(x = range(-10,10), y =  rest1)
+    
+#Export graph
+plot_url = py.plot([trace1,trace2,trace3], auto_open=False)  
+
+
+
+sys.exit('Ok')
+
+
+
+
+'''
+
+c = np.random.rand(1,3)
+c[0,0] = 0.5
+c[0,1] = 0.5
+c[0,2] = 0.5
+
+A = np.random.rand(3,2)
+A[0,0] = 1
+A[1,0] = 2
+A[2,0] = 3
+
+A[0,1] = 4
+A[1,1] = 3
+A[2,1] = 2
+
+
+x = np.zeros((1,3))
+x[0,0] = 5
+x[0,1] = 5
+x[0,2] = 5 
+
+n = 3
+
+print(main_hessian(x))
+
+
+'''
