@@ -145,7 +145,6 @@ def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps, inverse = Tru
         
         if count == print_counter:
             print(np.linalg.norm(grad))
-	    sys.stdout.flush()
             count = 0
         
         count = count + 1
