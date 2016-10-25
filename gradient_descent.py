@@ -27,9 +27,15 @@ m = 200
 c = np.random.rand(1,n)
 #Puts each a_j as a column of the following matrix
 A = np.random.rand(n,m)
-global_alpha = 0.001
+#Global constant alpha
+global_alpha = 0.01
+#GLobal epsilon for treshold
 global_eps = 0.01
+#global difference measure for gradient
+global_dif = 0.00001
+#Measure how many iterations to print pogress
 print_counter = 10
+
 
 #Final experiment variables
 #-----------------------------------------------
@@ -132,7 +138,7 @@ def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps, inverse = Tru
         x_last = x_actual
         
         #Checks the the treshold
-        treshold = np.linalg.norm(grad) < eps  or np.linalg.norm(grad - grad_last) < 0.0000001
+        treshold = np.linalg.norm(grad) < eps  or np.linalg.norm(grad - grad_last) < global_dif
         
         if count == print_counter:
             print(np.linalg.norm(grad))
@@ -338,9 +344,6 @@ def run_constant_backtracking():
 #---- Newton ------
 #Runs the constant example
 def B_matrix_hessian(B, x, x_prev):
-    if B is None:
-        return np.identity(n) 
-        
     return main_hessian(x)
 
 def run_newton():
@@ -363,7 +366,8 @@ def run_newton():
 #Primero se declara la funcion que se encarga de
 def BFGS(B, x_actual, x_last):
     if B is None:
-        return main_hessian(x_actual)
+        return np.identity(n) 
+
     
     #Calculates temporal next value
     grad = main_gradient(x_actual)
