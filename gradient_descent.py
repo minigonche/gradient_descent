@@ -28,14 +28,14 @@ c = np.random.rand(1,n)
 #Puts each a_j as a column of the following matrix
 A = np.random.rand(n,m)
 global_alpha = 0.001
-global_eps = 1
-print_counter = 2
+global_eps = 0.01
+print_counter = 10
 
 #Final experiment variables
 #-----------------------------------------------
 c_e = np.random.rand(1,2)
-c_e[0,0] = math.pi
-c_e[0,1] = -math.pi
+c_e[0,0] = 1/math.pi
+c_e[0,1] = -1/math.pi
 
 #Puts each a_j as a column of the following matrix
 A_e = np.random.rand(2,2)
@@ -44,8 +44,7 @@ A_e[1,0] = 1/2
 A_e[0,1] = 1/2
 A_e[1,1] = -1/2
 
-global_eps_e = 1
-global_alpha_e = 0.01
+global_eps_e = 0.01
 
 
 #----------------------------------------------------------------------
@@ -56,7 +55,7 @@ global_alpha_e = 0.01
 #NOTE: Vectors are assumed as matrix of dimension 1 x n
 #Runs the gradient descent with the given parameters
 #Serves as a unified method
-def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps, inverse = True):
+def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps, inverse = True, initial = None):
     """
         Parameters
         ----------
@@ -80,12 +79,20 @@ def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps, inverse = Tru
             The epsylon that serves as a stopping criteria for the algorithm
         solve : boolean
             Indicates if the B_matrix method gives the B or the B^-1 matrix
+        Initial : np:vector
+            The initial vector. If None is received, then the procedure strarts
+            at zero.
     """
     
     #Initial values
     #The first alpha and B matrix are initialized at None
-    x = np.zeros((1,dim))
+    
+    x = initial
+    if x is None:
+        x = np.zeros((1,dim))
+        
     x_last = np.zeros((1,dim))
+    grad_last = np.zeros((1,dim))
     B = None
     a = None
     p = None
@@ -95,10 +102,12 @@ def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps, inverse = Tru
     
     #printing variables
     count = 1
+    global_count = 0
     
     #Graphing variables
     x_variables = []
     function_values = []
+    
     
     #Becomes true when |f(x_n+1) - f(x_n)| < eps
     while(not treshold):
@@ -123,18 +132,22 @@ def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps, inverse = Tru
         x_last = x_actual
         
         #Checks the the treshold
+        treshold = np.linalg.norm(grad) < eps  or np.linalg.norm(grad - grad_last) < 0.0000001
+        
         if count == print_counter:
             print(np.linalg.norm(grad))
             count = 0
-        count = count + 1    
-        treshold = np.linalg.norm(grad) < eps
+        
+        count = count + 1
+        global_count = global_count +1
+        grad_last = grad
         
     
     x_final = x
     value_final = fun(x)
     
     
-    return [x_final, value_final, x_variables,function_values ]
+    return [x_final, value_final, x_variables, function_values, global_count ]
 #end of run_gradient_descent
 
 #Graphing method
@@ -386,6 +399,16 @@ def run_BFGS():
 #Runs the constant example
 def run_experiment():
     
+    cons = c_e + np.matrix(sum(A_e.T))
+    theta_1 = max(map(lambda a_column: -1/np.dot(a_column,cons.T) , A_e.T))
+    theta_2 = min(map(lambda v: 1/math.fabs(v), cons.T))
+    if(theta_2 < theta_1):
+        raise ValueError('No suitable alphas exist')
+    global_alpha_e =  theta_2/(1+0.01)
+    
+    x = np.zeros((1,2))
+    x[0,0] = -1
+    x[0,1] = 0
 
     B_const = np.identity(2)
     B_matrix_fun = lambda B, x, x_prev: B_const
@@ -397,7 +420,8 @@ def run_experiment():
                                   gradient = exp_gradient, 
                                   alpha = alpha_global_e, 
                                   B_matrix = B_matrix_fun, 
-                                  eps = global_eps_e )
+                                  eps = global_eps_e, 
+                                  initial = x)
     
     return result
 #end of run_constant        
@@ -407,23 +431,27 @@ def run_experiment():
 #------------------------ Excecutions ---------------------------------
 #----------------------------------------------------------------------
 
-'''
-resultado =  run_BFGS()
+
+resultado =  run_newton()
 print('Fin de la ejecucion')
 print('------------------------------')
 print('Valor:' + str(resultado[1]))
 print('------------------------------')
+print('Numero de Iteraciones: ' + str(resultado[4]))
 print(' ')
 
+plot_log(resultado[3], resultado[1])
+    
+
 sys.exit('Ok')
-'''
+
 
 #----------------------------------------------------------------------
 #------------------------ Last Experiment -----------------------------
 #----------------------------------------------------------------------
 
 
-
+'''
 
 resultado =  run_experiment()
 print('Fin de la ejecucion')
@@ -432,23 +460,30 @@ print('Valor:' + str(resultado[1]))
 print('------------------------------')
 print(' ')
 
+optimo = resultado[0]
+
+area = range(-400,1)
 
 x_values = map(lambda v: v[0,0], resultado[2])
 y_values = map(lambda v: v[0,1], resultado[2])
 
-rest1 = map(lambda v: 2- x, range(-10,10))
-rest2 = map(lambda v: 2 + x, range(-10,10))
+rest1 = map(lambda v: 2- v, area)
+rest2 = map(lambda v: 2 + v, area)
 
 trace1 = go.Scatter(x = x_values, y =  y_values)
-trace2 = go.Scatter(x = range(-10,10), y =  rest1)
-trace3 = go.Scatter(x = range(-10,10), y =  rest1)
+trace2 = go.Scatter(x = area + area, y =  rest1 +rest2)
+trace3 = go.Scatter(x = [optimo[0,0]], y = [optimo[0,1]])
+trace4 = go.Scatter(x = [-1], y = [0])
     
 #Export graph
-plot_url = py.plot([trace1,trace2,trace3], auto_open=False)  
+plot_url = py.plot([trace1,trace2,trace3,trace4], auto_open=False)  
 
+print(resultado[4])
 
 
 sys.exit('Ok')
+
+'''
 
 
 
