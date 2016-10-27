@@ -11,6 +11,8 @@ import numpy as np
 import math as math
 #For system requirements
 import sys
+#For time measurement
+import time
 
 #For Graphing. The methods export the grapgics on plotly, the user only needs
 # to enter his/her username and api-key
@@ -30,27 +32,34 @@ A = np.random.rand(n,m)
 #Global constant alpha
 global_alpha = 0.001
 #GLobal epsilon for treshold
-global_eps = 0.01
+global_eps = 0.001
 #global difference measure for gradient
 global_dif = 0.000001
 #Measure how many iterations to print pogress
-print_counter = 10
+print_counter = 20
 
 
 #Final experiment variables
 #-----------------------------------------------
 c_e = np.random.rand(1,2)
-c_e[0,0] = 1/math.pi
-c_e[0,1] = -1/math.pi
+c_e[0,0] = 1
+c_e[0,1] = 1
 
 #Puts each a_j as a column of the following matrix
-A_e = np.random.rand(2,2)
-A_e[0,0] = 1/2
-A_e[1,0] = 1/2
-A_e[0,1] = 1/2
-A_e[1,1] = -1/2
+A_e = np.random.rand(2,4)
+A_e[0,0] = 1
+A_e[0,1] = -1
+A_e[0,2] = 0
+A_e[0,3] = 0
 
-global_eps_e = 0.01
+A_e[1,0] = 0
+A_e[1,1] = 0
+A_e[1,2] = 1
+A_e[1,3] = -1
+
+cube = 100
+
+global_eps_e = 0.000001
 
 
 #----------------------------------------------------------------------
@@ -89,7 +98,9 @@ def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps, inverse = Tru
             The initial vector. If None is received, then the procedure strarts
             at zero.
     """
-    
+    #Starts the timer
+    start_time = time.time()
+
     #Initial values
     #The first alpha and B matrix are initialized at None
     
@@ -156,7 +167,7 @@ def run_gradient_descent(dim, fun, gradient, alpha, B_matrix, eps, inverse = Tru
     value_final = fun(x)
     
     
-    return [x_final, value_final, x_variables, function_values, global_count ]
+    return [x_final, value_final, x_variables, function_values, global_count, time.time() - start_time]
 #end of run_gradient_descent
 
 #Graphing method
@@ -201,7 +212,7 @@ def plot(x_values, y_values):
 
 #Declares the global function, its gradient and its Hessian
 def main_function(x):
-
+    
     first_term = c.dot(x.T)[0,0]
     second_term = (-1)*sum(map(lambda a: math.log(1 - a.dot(x.T)), A.T))
     third_term = (-1)*sum(map(lambda y: math.log(1 - y**2), x.T))
@@ -246,14 +257,15 @@ def main_hessian(x):
     return(hessian)
 #end of main_hessian
 
-
+#-----------------------------------
 #EXPERIMENT FUNCTION
 
-#Declares the global function, its gradient and its Hessian
+
+#Declares the global function, its gradient 
 def exp_function(x):
 
     first_term = c_e.dot(x.T)[0,0]
-    second_term = (-1)*sum(map(lambda a: math.log(1 - a.dot(x.T)), A_e.T))
+    second_term = (-1)*sum(map(lambda a: math.log(cube - a.dot(x.T)), A_e.T))
 
     return(first_term + second_term )
 #end of exp_function   
@@ -262,10 +274,9 @@ def exp_gradient(x):
     first_term = np.array(c_e)
     
     #Calculates the common vector in each coordinate
-    temp_vec = np.array(map(lambda a_column: 1/(1 - a_column.dot(x.T)), A_e.T))
+    temp_vec = np.array(map(lambda a_column: 1/(cube - a_column.dot(x.T)), A_e.T))
     second_term = np.array(map(lambda a_row:  a_row.dot(temp_vec), A_e)).T
     
-
     return(first_term + second_term )
 #end of exp_gradient
 
@@ -298,7 +309,6 @@ def alpha_backtracking(x, p):
     if(p is None):
         return global_alpha
     
-  
     a = 1
     flag = True
     while(flag):
@@ -311,6 +321,29 @@ def alpha_backtracking(x, p):
     rho = 4/5
     c = 4/5
     while(main_function(x + a*p) > main_function(x) + c*a*np.dot(main_gradient(x),p.T) ):
+        a = rho*a
+    
+    return a
+# end of alpha_backtracking
+
+#Alpha backtracking for experiment
+def alpha_backtracking_exp(x, p):
+    #For the first iteration
+    if(p is None):
+        return global_alpha_e
+    
+    a = 1
+    flag = True
+    while(flag):
+        try:
+            exp_function(x + a*p)
+            flag = False
+        except ValueError:
+            a = a/2
+
+    rho = 4/5
+    c = 4/5
+    while(exp_function(x + a*p) > exp_function(x) + c*a*np.dot(exp_gradient(x),p.T) ):
         a = rho*a
     
     return a
@@ -378,6 +411,8 @@ def run_newton():
 #-------------------------------------
 #---- Newton BFGS ------
 
+condition_numbers = []
+
 #Primero se declara la funcion que se encarga de
 def BFGS(B, x_actual, x_last):
     if B is None:
@@ -398,7 +433,11 @@ def BFGS(B, x_actual, x_last):
     second_term = (-1)*np.dot(B.dot(s.T), s.dot(B))/(np.dot(s, B.dot(s.T)))
     third_term = np.dot(y.T,y)/np.dot(y, s.T)
     
-    return first_term + second_term + third_term
+    final_b = first_term + second_term + third_term
+    
+    condition_numbers.append(np.linalg.cond(final_b))
+    
+    return final_b
         
 
 def run_BFGS():
@@ -419,26 +458,19 @@ def run_BFGS():
 #Runs the constant example
 def run_experiment():
     
-    cons = c_e + np.matrix(sum(A_e.T))
-    theta_1 = max(map(lambda a_column: -1/np.dot(a_column,cons.T) , A_e.T))
-    theta_2 = min(map(lambda v: 1/math.fabs(v), cons.T))
-    if(theta_2 < theta_1):
-        raise ValueError('No suitable alphas exist')
-    global_alpha_e =  theta_2/(1+0.01)
     
     x = np.zeros((1,2))
-    x[0,0] = -1
-    x[0,1] = 0
+    x[0,0] = 25
+    x[0,1] = 75
 
     B_const = np.identity(2)
     B_matrix_fun = lambda B, x, x_prev: B_const
     
-    alpha_global_e = lambda x, p: global_alpha_e
     
     result = run_gradient_descent(dim = 2,
                                   fun = exp_function,
                                   gradient = exp_gradient, 
-                                  alpha = alpha_global_e, 
+                                  alpha = alpha_backtracking_exp, 
                                   B_matrix = B_matrix_fun, 
                                   eps = global_eps_e, 
                                   initial = x)
@@ -451,19 +483,108 @@ def run_experiment():
 #------------------------ Excecutions ---------------------------------
 #----------------------------------------------------------------------
 
+#----------------------------------------------------------------------
+#------------------------ Main Experiment -----------------------------
+#----------------------------------------------------------------------
 
-resultado =  run_constant()
-print('Fin de la ejecucion')
-print('------------------------------')
-print('Valor:' + str(resultado[1]))
-print('------------------------------')
-print('Numero de Iteraciones: ' + str(resultado[4]))
-print(' ')
+'''
+#Runs the main experiment
 
+print('Start Constant Gradient')
+r_const =  run_constant()
+print('Ok')
+print('Numero de Iteraciones: ' + str(r_const[4]))
+print('Tiempo: ' + str(r_const[5]))
+print('Minimo: ' + str(r_const[1]))
+print('------------------------------')
+print('')
+print('------------------------------')
+
+print('Start Constant Gradient With Backtracking')
+r_const_b =  run_constant_backtracking()
+print('Ok')
+print('Numero de Iteraciones: ' + str(r_const_b[4]))
+print('Tiempo: ' + str(r_const_b[5]))
+print('Minimo: ' + str(r_const_b[1]))
+print('------------------------------')
+print('')
+print('------------------------------')
+
+
+print('Start Newton')
+r_newton =  run_newton()
+print('Ok')
+print('Numero de Iteraciones: ' + str(r_newton[4]))
+print('Tiempo: ' + str(r_newton[5]))
+print('Minimo: ' + str(r_newton[1]))
+print('------------------------------')
+print('')
+print('------------------------------')
+
+print('Start Quasi')
+r_quasi =  run_BFGS()
+print('Ok')
+print('Numero de Iteraciones: ' + str(r_quasi[4]))
+print('Tiempo: ' + str(r_quasi[5]))
+print('Minimo: ' + str(r_quasi[1]))
+print('------------------------------')
+print('')
+print('------------------------------')
+
+'''
+
+'''
 #plot_log(resultado[3], resultado[1])
+
+#Graphs the plot for log
+dif = map(lambda y: math.log(y - r_const[1] ),r_const[3])
+trace_1 = go.Scatter(x = range(len(dif)), y =  dif)
+
+dif = map(lambda y: math.log(y - r_const_b[1] ),r_const_b[3])
+trace_2 = go.Scatter(x = range(len(dif)), y =  dif)
+
+dif = map(lambda y: math.log(y - r_newton[1] ),r_newton[3])
+trace_3 = go.Scatter(x = range(len(dif)), y =  dif)
+
+dif = map(lambda y: math.log(y - r_quasi[1] ),r_quasi[3])
+trace_4 = go.Scatter(x = range(len(dif)), y =  dif)
+
+#Export graph
+plot_url = py.plot([trace_1,trace_2,trace_3,trace_4], auto_open=False) 
+
+print('Grafica logaritmica hecha')
+
+#Makes a bubble graph for the time and iterations
+
+tam = 35
+trace_1 = go.Scatter( x = [r_const[4]],
+                    y = [r_const[5]],
+                    marker = dict(color = ['red'], 
+                                  size = [tam]), mode = 'markers')
+                                  
+trace_2 = go.Scatter( x = [r_const_b[4]],
+                    y = [r_const_b[5]],
+                    marker = dict(color = ['green'], 
+                                  size = [tam]), mode = 'markers')
+                                  
+trace_3 = go.Scatter( x = [r_newton[4]],
+                    y = [r_newton[5]],
+                    marker = dict(color = ['blue'], 
+                                  size = [tam]), mode = 'markers')
+
+trace_4 = go.Scatter( x = [r_quasi[4]],
+                    y = [r_quasi[5]],
+                    marker = dict(color = ['orange'], 
+                                  size = [tam],), mode = 'markers')                                  
+
+plot_url = py.plot([trace_1,trace_2,trace_3,trace_4], auto_open=False) 
+
+print('Grafica tiempo vs iteraciones')
     
 
 sys.exit('Ok')
+
+'''
 
 
 #----------------------------------------------------------------------
@@ -471,29 +592,48 @@ sys.exit('Ok')
 #----------------------------------------------------------------------
 
 
-'''
 
 resultado =  run_experiment()
 print('Fin de la ejecucion')
 print('------------------------------')
 print('Valor:' + str(resultado[1]))
+print('Valor de X: ' + str(resultado[0]))
+print('Numero de Iteraciones: ' + str(resultado[4]))
+print('Tiempo: ' + str(resultado[5]))
 print('------------------------------')
 print(' ')
+
 
 optimo = resultado[0]
 
 area = range(-400,1)
 
+x_v_1 = [-100]*201
+y_v_1 = range(-100,101)
+
+x_h_2 = range(-100,101)
+y_h_2 = [100]*201
+
+x_v_2 = [100]*201
+y_v_2 = list(reversed(range(-100,101)))
+
+x_h_1 = list(reversed(range(-100,101)))
+y_h_1 = [-100]*201
+
+
+
+x_area = x_v_1 + x_h_2 + x_v_2 + x_h_1 
+y_area = y_v_1 + y_h_2 + y_v_2 + y_h_1
+
+
 x_values = map(lambda v: v[0,0], resultado[2])
 y_values = map(lambda v: v[0,1], resultado[2])
 
-rest1 = map(lambda v: 2- v, area)
-rest2 = map(lambda v: 2 + v, area)
 
-trace1 = go.Scatter(x = x_values, y =  y_values)
-trace2 = go.Scatter(x = area + area, y =  rest1 +rest2)
+trace1 = go.Scatter(x = x_area , y =  y_area)
+trace2 = go.Scatter(x = x_values, y =  y_values)
 trace3 = go.Scatter(x = [optimo[0,0]], y = [optimo[0,1]])
-trace4 = go.Scatter(x = [-1], y = [0])
+trace4 = go.Scatter(x = [25], y = [75])
     
 #Export graph
 plot_url = py.plot([trace1,trace2,trace3,trace4], auto_open=False)  
@@ -503,37 +643,5 @@ print(resultado[4])
 
 sys.exit('Ok')
 
-'''
 
 
-
-
-
-'''
-c = np.random.rand(1,3)
-c[0,0] = 0.5
-c[0,1] = 0.5
-c[0,2] = 0.5
-
-A = np.random.rand(2,2)
-A[0,0] = 1
-A[1,0] = 1
-
-
-A[0,1] = 0
-A[1,1] = 0
-
-
-
-x = np.zeros((1,2))
-x[0,0] = 0
-x[0,1] = 0
-
-
-n = 2
-
-print(main_hessian(x))
-
-
-
-'''
